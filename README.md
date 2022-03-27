@@ -1,5 +1,7 @@
 # Supervised Learning Case: Predicting potential customers for a personal loan in a financial institution
 
+Project made with R libraries. You can fin all the code here: https://leoncasba.github.io/predicting_potential_loan_customers/Predicting_potential_loan_cxs.html
+
 # Business Understanding
 
 ## Case Statement
