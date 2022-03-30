@@ -1,0 +1,569 @@
+---
+title: "<div class='mytitle'>**Supervised Learning Case: Predicting potential customers for a personal loan in a financial institution**</div></center>"
+author: "<div class='mysubtitle'>*By Leonardo Castro*</div></center>"
+output:
+  html_document:
+    code_folding: "hide"
+    fig_caption: true
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  word_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">
+
+**Note:** If you want to look at the full R code used to solve this business case, please click on the **"Code"** button which when is displayed or go directly to my GitHub Repository by clicking [**here**](https://github.com/leoncasba/predicting_potential_loan_customers).
+
+</div>
+
+***
+# **Introduction: Classification Models**
+***
+
+In fin-tech companies data is one of the main assets, however, the **value of the data** can be evaluated when the organization can extract the valuable knowledge hidden in the raw data. 
+
+Machine Learning classification models are extremely useful to predict customer's behavior in many different scenarios. **Classification algorithms** are a type of supervised learning models where they learn from labeled data. After understanding the data, the algorithm determines which label should be given to new data by associating patterns to the unlabeled new data.
+
+Some of the most used classification algorithms are *Logistic Regression*, *Decision Tree*, *Random Forest*, *Support Vector Machines*, *K-Nearest Neighbour* and *Naive Bayes*, to mention a few. We will take a closer look to some of them later on.
+
+In this context, I will train some Machine Learning algorithms commonly used for classification and try to explain how they perform for then compare them with each other when applied to customer data from a financial institution. 
+
+Before diving deep into code and statistics, let's understand the business case and what would be the benefits of applying this classification models.
+
+***
+# **Business Understanding**
+***
+## Case Statement
+***
+
+>Loans represents the main income from banks, which comes from the loan's interests. By this premise, banks definitely will be looking for prospective customers in order to encourage and persuade them to take a personal loan and consequently increase their income by the profitable interests.
+
+>Marketing efforts should be directed to those prospective customers likely to take the loan and that is the reason the analytics team from a financial institution would like to model and predict which new/passive customers are prospectives to become personal loan customers.
+
+>There is data from around 5000 customers from a past marketing campaign which had recent success. It was targeted to convert trusted passive customers to personal loan customers. This valuable asset (raw data) can be converted into a powerful tool to increase conversion rate success on the company.Let's find out how Data Science extracts the gold from the raw data.
+
+***
+## Objective
+***
+
+>The **objective** of this analysis is to model the characteristics of the clients of the previous campaign in order to analyze what combination of factors make a client more likely to accept a personal loan. By modeling this factors we will construct a model able to predict if new customers are prospective/have higher probability to get a personal loan.
+
+***
+## Business Benefit
+***
+
+>To help Business Development and Marketing Teams to create product & marketing strategies targeted to those prospective customers more likely to become personal loan customers and ensure its efforts and resources are going to be spent on the right people. Consequently, we expect more revenue coming from loan's interests making more profitable the business.
+
+***
+## Scope
+***
+
+>This analysis parts from the hypothesis that all the customers being analyzed are trusted customers, for hence, eligible customers to get a loan. I am not analyzing whether the customers are good or bad payers. Also I want to clarify all the insights come strictly from the data and not from subjective opinion. However, we should have opinion from a Subject Matter Expert (SME) to get better understanding of some policies or rules on loan and fin-tech business.
+
+***
+## Key Business Questions
+***
+
+  >* How are characterized the personal loan customers?
+  * What is the most important variable/s which defines if a customer will get a loan customer?
+  * What is the expected accuracy of the model to be developed? Will it predict correctly?
+
+***
+## Expected Outcomes
+***
+
+  >* To obtain an accurate model which can predict prospective customers likely to get a personal loan.
+  * To know which variables or characteristics are the most important to know in order to convert a new customer into a personal loan customer.
+
+***
+# **Methodology & Analytics Techniques Used**
+***
+
+  * Data understanding
+  * Data cleaning and preparation.
+  * Exploratory data analysis.
+  * Data splitting (training/test).
+  * Machine Learning Classification Models:
+    * Logistic Regression.
+    * Classification Trees.
+    * Random Forest.
+    * K-Nearest Neighbors.
+  
+```{r load packages, warning=FALSE, message=FALSE}
+#These are the R packages used for the analysis.
+library(knitr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(hrbrthemes)
+library(yardstick)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(randomForest)
+library(class)
+library(ROCit)
+```
+***
+## Data Understanding
+***
+
+  * Data consists in customers' personal information from a financial institution.
+  * Data was directly downloaded from a GitHub repository. You can find it [**here.**](https://github.com/gchoi/Dataset/blob/master/UniversalBank.csv)
+  * The data set has 14 columns and 5000 rows.
+  * Data dictionary:
+  
+    * **ID:** customer id.
+    * **Age:** customer's age in completed years.
+    * **Experience:**  number of years of professional experience.
+    * **Income:** annual customer earnings ($ thousands).
+    * **ZIP.Code:** customer's address zip code.
+    * **Family:** family size.
+    * **CCAvg:** average credit card spend per month ($ thousands).
+    * **Education:** Level of studies, 1= Undergraduate, 2= Graduate, 3= Advanced/Professional.
+    * **Mortgage:** mortgage value of the house.
+    * **Personal.Loan:** coded with 1 if the client has accepted the personal loan from the bank in the previous campaign. This variable is going to be the **predictor/dependent variable.**
+    * **Securities.Account:** coded with 1 if the client has a security account with the bank.
+    * **CD.Account:** coded with 1 if the client has a certificate of deposit (CD) with the bank.
+    * **Online:** coded 1 if the client has online services with the bank.
+    * **CreditCard:** coded 1 if the customer uses has at least one  credit card with the bank.
+    
+    
+```{r}
+#Read database
+bank <- read.csv("UniversalBank.csv")
+
+#Head 5 first rows from database
+kable(head(bank,5),  caption="**Table 1.** First five rows from bank database.")
+
+```    
+***
+## Data Cleaning and Preparation.
+***
+
+Findings and actions:
+
+  * There are not missing values on the database.
+  * I found an error on variable *Experience*, which corresponds to value -3. This value is incorrect as the minimum value for the variable Experience has to be 0 as there are not negative years of experience. Probably is a data entry error, so I proceeded replacing for a 0.
+  * There are two variables not suitable for the analysis: *ID* and *ZIP.Code*. I proceed eliminating them.
+  * Categorical variables have been read as numerical, so I proceed converting them to factor, as we need it for the further steps.
+
+```{r, warning=FALSE}
+#Function to get percentage of missing values
+NAporcent <- function(x, ndec=2){
+  porcent=(sum(is.na(x))/length(x))*100
+  p2 = round(porcent, digits=ndec)
+}
+
+#Look if there are missing values
+print(paste("There are", sum(apply(bank, 2, NAporcent)), "missing values."))
+
+
+# Check data types and range for each variable
+descriptive <- cbind(t(apply(bank, 2, range, na.rm = TRUE)), apply(bank, 2, class))
+colnames(descriptive) <- c("Min","Max", "Data Type")
+kable(descriptive, caption="**Table 2.** Variables range and data type", digits=2)
+
+# Delete ID y ZIP.CODE columns
+bank2 <- bank[ , -c(1, 5)]  
+
+# Correct data error
+bank2$Experience[bank$Experience<0]<-0
+
+# Create categorical and binary variables (convert as factor)
+bank2$Education <- factor(bank$Education, c(1, 2, 3), c("Undergraduate", "Graduate", "Advanced/Professional"))
+bank2$Securities.Account<-factor(bank$Securities.Account)
+bank2$CD.Account<- factor(bank$CD.Account)
+bank2$Online<- factor(bank$Online)
+bank2$CreditCard<-factor(bank$CreditCard)
+bank2$Personal.Loan<-factor(bank$Personal.Loan)
+```
+***
+## Exploratory Data Analysis
+***
+
+  * **Do the customers who accepted the personal loan have more services in the same bank as Security Account, Certificate of Deposit, Online Services, Credit Card?**
+<br><br>
+More than 50% of loan customers have Online Services, which is a good place where to target and promote personal loans. Around 25% have certificate of Deposit and Credit Cards. Around 12% have a Security Account.
+  
+```{r, fig.align='center', fig.height=7, fig.width=14,fig.cap = '**Figure 1.** Percentage of loan customers who has another bank services: Security Account, Certificate of Deposit, Online Services or Credit Cards.'}
+#Preparing data to plot
+q1 <- bank2 %>% filter(Personal.Loan == 1) %>% 
+  select(Securities.Account, CD.Account, Online, CreditCard) %>% 
+  pivot_longer(c(Securities.Account, CD.Account, Online, CreditCard), names_to = "Type_of_Service", values_to = "Yes_No") %>%
+  group_by(Type_of_Service) %>%
+  mutate(Percentage=sum(as.numeric(Yes_No))) 
+colnames(q1)[2] <- "Has_Not_Has"
+#Plotting barplot
+ggplot(q1, aes(x = Type_of_Service, y=Percentage, fill=Has_Not_Has)) + geom_col(position = "fill")+xlab("Type of Bank Service")
+
+```
+<br>
+  * **How are the salaries distributed? Is there any difference regarding the education? Are differences on the customers who accepted/rejected the loan?**
+<br><br>
+It seems customers with higher salaries tend to get the loan, independently of the education level. Figure also shows there's a gap of salary on undergraduate customers, where there is people which earns more than /$200k per year and in the other hand, people who earn around \$10k per year. This quick insight let us have the hypothesis that income will be one of the most important variables to define the model.
+
+```{r, fig.align='center', fig.height=7, fig.width=14, fig.cap = '**Figure 2.** Salaries distribution in customer who accepted and not accepted the loan according with education level.'}
+#Boxplot
+  ggplot(bank2, aes(x=Personal.Loan, y=Income, fill=Education))+geom_boxplot()+facet_grid(~Education) +  scale_fill_brewer(palette="BuPu")+xlab("Personal Loan: 1=Accepted / 0=Denied")
+```
+<br>
+  * **What is the size of families? How are the frequencies per family group size?**
+<br><br>
+It seems like there is a slight difference between the family size groups on those customers who accepted the loan. It may not be an important variable to consider on the models, however, is just a hypothesis we will definitely confirm on further steps. 
+  
+```{r, , fig.align='center', fig.height=7, fig.width=14, fig.cap = '**Figure 3.** Frecuency of family group sizes in loan/not loan customers.'}
+#Barplot showing percentage of family size 
+ggplot(bank2, aes(x= Family,  group=Personal.Loan)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count") +
+    geom_text(aes( label = scales::percent(..prop..),
+                   y= ..prop.. ), stat= "count", vjust = -.5) +
+    labs(y = "Percentage (%)", fill="Family Size") +
+    facet_grid(~Personal.Loan) +
+    scale_y_continuous(labels = scales::percent) +
+  scale_fill_brewer(palette="BuPu")
+
+```
+<br>
+  * **What is the average credit card spent per month on personal loan customers?**
+<br><br>
+As we can see on the density plot, most of the loan customers spent around \$ 2500 and \$ 5000 dollars in credit card. This can be a really useful information at the time of setting the loan amounts to offer to the clients.
+
+```{r, fig.align='center', fig.height=7, fig.width=14, fig.cap = '**Figure 4.** Distribution of average credit card spend per month on personal loan customers.', warning=FALSE, message=FALSE}
+bank2 %>% filter(Personal.Loan==1) %>%
+  ggplot(aes(x=CCAvg)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) +
+    theme_ipsum()+xlab("Average credit card spend per month (thousands $)")
+```
+
+***
+## Data splitting (Train and Test)
+***
+
+In order to evaluate the accuracy of the classification models, the data must be partitioned into training and test data sets. The training partition is used to build the model, and the test partition is used to see how well the model performs when applied to new data and measure its error. For the partition, we will take 70% of the data for training and 30% for testing.
+
+```{r}
+set.seed(777)
+#Test/training partitions are created using createDataPartition
+trainIndex <- createDataPartition(bank2$Personal.Loan, p = 0.7,  list = FALSE, times = 1)
+#CreateDataPartition function from library caret ensures stratified sampling, so that the 1 and 0 are represented in train and test in the same proportion as in the original sample.
+#Creating training/test data sets
+banktrain <- bank2[trainIndex,]
+banktest  <- bank2[-trainIndex,]
+```
+
+***
+## Classification Models
+***
+
+Let's recap: the **main goal** of the analysis is to predict whether or not a new customer will accept a personal loan using the predictor variable *Personal.Loan*. This is what I will be training with the supervised classification algorithms in the next steps.
+
+***
+### Logistic Regression
+***
+
+Logistic regression works very similar to linear regression, but with a binomial response variable. Instead of fitting a straight line or hyperplane, the logistic regression model uses the logistic function to squeeze the output of a linear equation between 0 and 1.
+
+The interpretation of the weights in logistic regression differs from the interpretation of the weights in linear regression, the weights do not influence the probability linearly any longer. The weighted sum is transformed by the logistic function to a probability. Therefore we need to reformulate the equation for the interpretation so that only the linear term is on the right side of the formula.
+
+<center>
+![](C:/Users/Leo/Desktop/Portfiolo/Classification - Universal Bank/logit.JPG)
+</center>
+\
+[**Image taken from this valuable article.**](https://www.analyticsvidhya.com/blog/2021/08/conceptual-understanding-of-logistic-regression-for-data-science-beginners/)
+
+We call the term in the ln() function “odds” (probability of event divided by probability of no event) and wrapped in the logarithm it is called log odds.
+
+$$\begin{aligned}\log\left( \frac { p }{ 1 - p} \right) &= \beta_{0} + \beta_{1}X_1 + \beta_{2}X_2 + \beta_{3}X_3 + ... + \beta_{n}X_n
+\end{aligned}$$
+
+Let's train the data with a logistic regression model.
+
+```{r}
+#Training the model
+logit <- glm(Personal.Loan ~ ., data = banktrain, family = "binomial") 
+options(scipen=999) #avoid scientific notation
+summary(logit)
+```
+
+If we look closely at the model, it seems that there are variables that are **not** significant (**p-value > 0.05**): age, experience, mortgage and securities account. Thus, it is convenient to eliminate these variables from the model and create a new one without them. Also would be interesting to try if exist an interaction between income * family and income * ccavg. Let's try!
+
+```{r}
+logit2 <- glm(Personal.Loan ~ Income*Family+Income*CCAvg+., data = banktrain[ , -which(names(banktrain) %in% c("Age","Experience", "Mortgage", "Securities.Account"))], family = "binomial") 
+summary(logit2)
+```
+<br>
+I checked all the variables are significant (**p-value < 0.05**). Now let's proceed to use the trained model to predict on the test data.
+
+```{r, fig.height=7, fig.width=12, fig.cap = '**Figure 5.** Confusion matrix for Logistic Regression Model.', warning=FALSE, message=FALSE}
+#Prediction
+pred.logit.test<-predict(logit2, banktest, type = "response")
+
+#Create confusion matrix
+predicted.response <- round(pred.logit.test)
+actual.response <- banktest$Personal.Loan
+outcomeslm <- table(predicted.response, actual.response)
+confusionlm <- conf_mat(outcomeslm)
+
+#Plot confusion matrix
+autoplot(confusionlm, type="heatmap")
+
+#Performance metrics
+performancelm <- summary(confusionlm, event_level="second") %>% select(.metric, .estimate)
+```
+***
+### Decision Trees
+***
+
+Decision tree  is one of the simplest and more understandable predictive modelling approaches used for classification. It builds classification or regression models in the form of a tree structure by breaking down a data set into smaller and smaller subsets while at the same time an associated decision tree is incrementally developed. The final result is a tree with decision nodes and leaf nodes. A decision node has two or more branches and the leaf node represents a classification or decision. The topmost decision node in a tree which corresponds to the best predictor called root node. 
+
+Here's a figure which explains Decision Tree structure, extracted from [**here.**](https://medium.com/analytics-vidhya/understanding-decision-tree-3591922690a6#:~:text=A%20decision%20tree%20is%20a,in%20statistics%20and%20machine%20learning.)
+
+<center>
+![](C:/Users/Leo/Desktop/Portfiolo/Classification - Universal Bank/dt.JPG)
+</center>
+\
+
+A classification tree grows using a divide-and-conquer process. Each time the tree grows larger, it splits groups of data into smaller subgroups, creating new branches in the tree. Divide-and-conquer algorithm prioritize to split first the group which create the greatest improvement in subgroup homogeneity.
+
+```{r, fig.height=7, fig.width=12, fig.cap = '**Figure 6.** Decision Tree structure of model without prune.', warning=FALSE, message=FALSE}
+set.seed(777)
+# Building a DT model predicting personal loan
+dt <- rpart(Personal.Loan ~ ., data = banktrain, method = "class", control = rpart.control(cp = 0))
+
+# Making the prediction for the test data
+predt <- predict(dt, banktest, type = "class")
+
+# Plotting the model 
+rpart.plot(dt, type = 3, box.palette = c("red", "green"), fallen.leaves = TRUE)
+
+#Check preliminary accuracy
+paste("Accuracy before prune is", mean(predt==actual.response))
+```
+
+As one common problem with Decision trees, is that they tend to over fit. Sometimes it looks like the tree memorized the training data set, it this affects the accuracy when predicting samples that are not part of the training set. In order to avoid overfitting we prune the tree, pruning is the process of reducing the size of the tree by turning some branch nodes into leaf nodes, and removing the leaf nodes under the original branch. 
+
+On this model We will apply a post-pruning. In post-prunning nodes and branches with only a minor impact on the trees overall's accuracy are removed after the fact. The relationship between accuracy and complexity can be depicted in the figure belows (extracted from [**DataCamp**](https://campus.datacamp.com/courses/supervised-learning-in-r-classification/classification-trees-4?ex=10)).
+
+<center>
+![](C:/Users/Leo/Desktop/Portfiolo/Classification - Universal Bank/prune.JPG)
+</center>
+\
+
+As the tree becomes increasingly complex, the model makes fewer errors. However, though the performance improves a lot at first, it then improves only slightly for the later increases in complexity. This trend provides insight into the optimal point at which to prune the tree, simply looking for the point where the curve flattens. The horizontal dotted line identifies the point at which error rate becomes statistically similar to the most complex model.
+
+```{r, fig.height=7, fig.width=12, fig.cap = '**Figure 7.** Error/Complexity plot to evaluate cp value.', warning=FALSE, message=FALSE}
+#Plotcp
+plotcp(dt)
+```
+
+
+```{r, fig.height=7, fig.width=12, fig.cap = '**Figure 8.** Decision Tree structure of pruned model.', warning=FALSE, message=FALSE}
+#As we can see cp=0.0052 is the point to prune the tree
+dt_pruned <- prune.rpart(dt, cp = 0.052)
+
+#Prediction with pruned_tree
+predt_pruned <- predict(dt_pruned, banktest, type = "class")
+
+# Plotting the new model 
+rpart.plot(dt_pruned, type = 3, box.palette = c("red", "green"), fallen.leaves = TRUE)
+
+#Check new accuracy
+paste("Accuracy before prune is", mean(predt_pruned==actual.response))
+```
+
+```{r, , fig.height=7, fig.width=12, fig.cap = '**Figure 9.** Confusion matrix for Decision Tree Model.', warning=FALSE, message=FALSE}
+#Confusion Matrix
+tabdt<-table(actual.response,predt_pruned)
+confusiondt <- conf_mat(tabdt)
+
+#Plot confusion matrix
+autoplot(confusiondt, type="heatmap")
+
+#Performance metrics
+performancedt <- summary(confusiondt, event_level="second") %>% select(.metric, .estimate)
+```
+
+***
+### Random Forest
+***
+
+Just as trees can be grouped as a forest, a number of classification trees can be combined into a collection known as Random Forest. This represents one of the most powerful Machine Learning classifiers, remarkably efficient and easy to use. The power of this algorithm comes from a collection of smaller and simple trees that together reflect the data's complexity. Each of the forest's trees is diverse and may reflect subtle patterns in the outcome to be modeled. Generating this diversity is the key to building powerful decision tree forests. 
+
+The algorithm allocate to each tree a random subset of the data, one may receive a vastly different training set than another, that is known as the bagging ensemble method. 
+
+The figure below (extracted from [**this article**](https://www.analyticsvidhya.com/blog/2021/06/understanding-random-forest/)) let understand in a  clear way how the Random Forest algorithm works. 
+
+<center>
+![](C:/Users/Leo/Desktop/Portfiolo/Classification - Universal Bank/rf.JPG)
+</center>
+\
+
+As we can see groups of classification trees can be combined into an **ensemble** that generates a single prediction by allowing the trees to "vote" on the outcome.
+
+```{r, warning=FALSE, message=FALSE}
+rf<-randomForest(Personal.Loan~ ., data=banktrain,
+                 mtry=sqrt(11), #number of predictors per tree. It is given by the square root of the n independent features
+                 method="class",
+                 importance=TRUE) 
+
+predrf <- predict(rf, banktest)
+```
+
+Now we can see how important is each variable in classifying the data modeling the Random Forest algorithm. The **Mean Decrease Accuracy** plot expresses how much accuracy the model losses by excluding each variable. The more the accuracy suffers, the more important the variable is for the successful classification.  The **Mean Decrease in Gini Coefficient** is a measure of how each variable contributes to the homogeneity of the nodes and leaves in the resulting random forest. The higher the value of mean decrease accuracy or mean decrease Gini score, the higher the importance of the variable in the model.
+
+In the figure below we can look how the variables are presented from descending importance for each metric.
+
+```{r, fig.height=9, fig.width=14, fig.cap = '**Figure 10.** Random Forest Importance of Variables plot.', warning=FALSE, message=FALSE}
+# Plot  importance
+varImpPlot(rf, main="",col="dark blue")
+```
+
+As we can see most important variables are Income and Education. As I showed on the Exploratory Data Analysis both variables are correlated. Also is interesting to find out Family is also an interesting variable which can affect the decision of a customer to take a loan, which is exactly the opposite of the hypotehsis I set on EDA. 
+
+```{r, fig.height=7, fig.width=12, fig.cap = '**Figure 11.** Confusion matrix  for Random Forest Model.', warning=FALSE, message=FALSE}
+#Create confusion matrix
+outcomesrf <- table(predrf, actual.response)
+confusionrf <- conf_mat(outcomesrf)
+
+#Plot confusion matrix
+autoplot(confusionrf, type="heatmap")
+
+#Performance metrics
+performancerf <- summary(confusionrf, event_level="second") %>% select(.metric, .estimate)
+
+```
+***
+### K-nearest Neighbor
+***
+
+K-NN algorithm predicts the correct class for the test data by calculating the distance between the test data and all the training points, then selects the K number of points which is closest to the test data. 
+
+The K-NN algorithm calculates the probability of the test data belonging to the classes of ‘K’ training data and class holds the highest probability will be selected. In the case of regression, the value is the mean of the ‘K’ selected training points.
+
+There's a simple graphical explanation I extracted from [**this Medium Article.**](https://medium.com/swlh/k-nearest-neighbor-ca2593d7a3c4#:~:text=K%2Dnearest%20neighbors%20(KNN),closet%20to%20the%20test%20data.)
+
+<center>
+![](C:/Users/Leo/Desktop/Portfiolo/Classification - Universal Bank/knn.JPG)
+</center>
+\
+
+The k variable specifies the number of neighbors to consider when making the classification, for hence, choosing the k value is very critical. A really small value of k means that noise will have a higher influence on the result and large value make it computationally expensive and kinda defeats the basic philosophy behind KNN (that points that are near might have similar densities or classes). There is not an universal rule to select k, however, a simple approach to select k is set k = n^(1/2), being n the number of variables we are classifying. 
+
+Now we know how the K-NN algorithm works, let's train and evaluate the model.
+
+```{r, fig.height=7, fig.width=12, fig.cap = '**Figure 12.** Confusion matrix  for K-Nearest Neighbor Model.', warning=FALSE, message=FALSE}
+#Train model
+kneighbour<-knn(train = banktrain[,-c(6, 8)], test = banktest[,-c(6,8)], cl= factor(banktrain$Personal.Loan), k=sqrt(10), prob=TRUE)
+#Knn only works with numeric variables so we eliminate the categorical from the test/training data.
+
+#Confusion Matrix
+
+tabknn<-table(actual.response,kneighbour)
+confusionknn <- conf_mat(tabknn)
+
+#Plot confusion matrix
+autoplot(confusionknn, type="heatmap")
+
+#Performance metrics
+performanceknn <- summary(confusionknn, event_level="second") %>% select(.metric, .estimate)
+
+```
+***
+# **Evaluation & Selection of Best Model**
+***
+
+Models can be evaluated using multiple metrics. However, the right choice of an evaluation metric is crucial and often depends upon the problem that is being solved. In this case, as our **business objective** is to predict prospective loan customers, I am going to focus on these three metrics: **Accuracy**, **Specificity** and **Sensibility**.
+
+**Accuracy** is the simplest metric and can be defined as the number of test cases correctly classified divided by the total number of test cases.
+<br>
+$$Accuracy~=~\frac{True~Positives+True~Negatives}{True~Positives+True~Negatives+False~Positives+False~Negatives}$$
+<br>
+Definitely we look for an accurate model able to predict in almost all the cases the prospective customers and direct all the efforts and marketing dollars to those prospective loan customers.
+
+**Sensitivity** tells us the number of positive cases correctly identified out of the total number of positive cases. Also know as recall or true positive rate.
+<br>
+$$Sensitivity~=~\frac{True~Positives}{True~Positves+False~Negatives}$$
+<br>
+**Specificity** is the proportion of actual negatives which got predicted as the negative (or true negative). Also known as true negative rate.
+<br>
+$$Specificity~=~\frac{True~Negatives}{False~Positives+True~Negatives}$$
+<br>
+As we want to deploy an accurate model we also want to be make sure the true prospective customer are being correctly classified rather than the ones are not. By this premise we will focus on choosing models with a better performance in Sensitivity than Specificity.
+
+However, best way to evaluate Sensitivity and Specificity measures is by ploting the ROC curve and calculating Area under ROC curve (AUC), used to determine the model performance. The **Receiver Operator Characteristic (ROC)** plots out the Sensitivity and Specificity for every possible decision rule cutoff between 0 and 1 for a model in different probability thresholds.
+
+```{r}
+#Getting the three metrics to evaluate
+accuracy <- rbind(performancelm[1,2], performancedt[1,2], performancerf[1,2], performanceknn[1,2])
+sens <- rbind(performancelm[3,2], performancedt[3,2], performancerf[3,2], performanceknn[3,2])
+spec <- rbind(performancelm[4,2], performancedt[4,2], performancerf[4,2], performanceknn[4,2])
+
+#Comparative table
+models <- c("Logistic Regression","Decision Tree","Random Forest", "K-NN")
+seleccion <- cbind(models,accuracy, sens, spec) 
+colnames(seleccion) <- c("Models", "Accuracy", "Sensibility","Specificity")
+kable(seleccion,  caption="**Table 7.** Performance metrics for each model trained.", digits=3)
+```
+
+
+```{r, , fig.height=13, fig.width=13, fig.cap = '**Figure 13.** ROC Curves for classification models trained/tested.', warning=FALSE, message=FALSE}
+#First I create ROC objects for every model tested
+ROCit_lm <- rocit(score=pred.logit.test, class=actual.response)
+ROCit_dt <- rocit(score=as.numeric(predt_pruned), class=actual.response)
+ROCit_rf <- rocit(score=as.numeric(predrf), class=actual.response)
+ROCit_knn <- rocit(score=as.numeric(kneighbour), class=actual.response)
+
+#Then I plot the ROC curve. Also I added the AUC extracting it from the ROCit object created in the previous step
+par(mfrow=c(2,2))
+plot(ROCit_lm)
+text(0.9, 0.7, c("AUC=0.96"), cex=1.5)
+text(0.4, 0.05, c("Logistic Regression"), cex=2, col="red")
+plot(ROCit_dt)
+text(0.9, 0.7, c("AUC=0.93"), cex=1.5)
+text(0.4, 0.05, c("Decision Tree"), cex=2, col="red")
+plot(ROCit_rf)
+text(0.9, 0.7, c("AUC=0.95"), cex=1.5)
+text(0.4, 0.05, c("Random Forest"), cex=2, col="red")
+plot(ROCit_knn)
+text(0.9, 0.7, c("AUC=0.68"), cex=1.5)
+text(0.4, 0.05, c("K-Nearest Neighbor"), cex=2, col="red")
+```
+
+First we notice the performance of K-NN does not seems really appropriate, despite has good specificity and accuracy metrics (but lower than the other models), sensibility has a poor value for our expectations. We notice Random Forest and Decision Tree's accuracy are the best compared with the other models. Checking the ROC curve it seems like the Logistic Regression has the best performance fit by evaluating the AUC (0.96). However, as we follow the rule to look for a model with a good sensibility metric keeping in mind the reasoning mentioned previously above, the sensibility performance in Logistic Regression is not good for our business purposes. 
+
+Finally the election would be between Random Forest and Decision Tree models..
+
+In this case I select **Decision Tree** as the best model to deploy. The reasoning behind is not only it has a better sensibility score, this model is also very intuitive and easy to explain to technical teams as well as stakeholders. Moreover, this model is really useful for business strategy, especially where transparency is needed, and as we are developing a solution for a financial institution it seems like a great choice because it allows to visualize through its structure how the decisions are being made.
+
+***
+# **Conclusions & Recommendations**
+***
+
+  * Model choose to deploy is Decision Tree. It has an accuracy of 97.8% and AUC=0.93, that means it predicts in valid and trustful way for our purposes.
+  * The most important variables which defines if a customer is more likely to get a personal loan are: Income, Education, Family size and Average Credit Card Monthly Spent.
+  * Our **ideal candidate** and for hence the one Business Development and Marketing Teams should focus are customers who has a salary around 80-200k\$ per year, is graduate or advanced/professional, has a family size equal or +3 people, and spend around 2.5-5k\$ monthly on credit cards.
+  
+***
+<center>
+>This is a work made by
+
+<center>
+![](C:/Users/Leo/Documents/themes/raditian-free-hugo-theme-data-science/static/img/logo_small.png)
+
+>*I appreciate your valuable feedback and suggestions. Go check my porfolio [**here.**](https://leon-datascience.netlify.app/)*
+
+***
+
