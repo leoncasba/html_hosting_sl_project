@@ -1,6 +1,6 @@
 # Supervised Learning Case: Predicting potential customers for a personal loan in a financial institution
 
-Project made with R code. You can find all the code here: https://leoncasba.github.io/predicting_potential_loan_customers_bank.html
+Project made with R code. You can find all the code here: https://leoncasba.github.io/predicting_potential_loan_customers/predicting_potential_loan_customers_bank.html#Decision_Trees
 
 # Business Understanding
 
